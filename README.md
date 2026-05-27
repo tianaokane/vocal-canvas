@@ -4,7 +4,7 @@ Paint with your voice. Hum, sing, or whisper into your microphone while moving y
 
 Every painting is a record of a sound you made.
 
-[**Try it live →**](https://yourusername.github.io/vocal-canvas)
+[**Try it live →**](https://tianaokane.github.io/vocal-canvas)
 
 ---
 
@@ -55,7 +55,7 @@ Hit **Export PNG** at any point to download the current painting as a full resol
 ## Run locally
 
 ```bash
-git clone https://github.com/yourusername/vocal-canvas.git
+git clone https://github.com/tianaokane/vocal-canvas.git
 cd vocal-canvas
 open index.html
 ```
@@ -64,4 +64,4 @@ Microphone and camera access require browser permissions. Works best in Chrome.
 
 ---
 
-*Part of [Body as Controller](https://yourusername.github.io) — a suite of browser instruments played with the human body.*
+*Part of [Body as Controller](https://tianaokane.github.io) — a suite of browser instruments played with the human body.*
