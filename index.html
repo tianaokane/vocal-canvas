@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Vocal Canvas - Body as Controller</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #05050d;
+      color: #e0e0ff;
+      font-family: monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── Mobile block ── */
+    #mobileBlock {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 40px;
+      text-align: center;
+      gap: 16px;
+    }
+
+    #mobileBlock h1 { font-size: 1rem; letter-spacing: 0.2em; color: #8888ff; }
+    #mobileBlock p  { font-size: 0.8rem; color: #444466; line-height: 1.8; }
+
+    @media (max-width: 860px) {
+      #mobileBlock  { display: flex; }
+      #desktopApp   { display: none !important; }
+    }
+
+    /* ── Desktop app ── */
+    #desktopApp {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+
+    /* ── Intro screen ── */
+    #introScreen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 840px;
+      padding: 40px 0;
+    }
+
+    #introScreen h1 {
+      font-size: 1.2rem;
+      letter-spacing: 0.3em;
+      color: #8888ff;
+      margin-bottom: 4px;
+    }
+
+    .tagline {
+      font-size: 0.7rem;
+      color: #333355;
+      letter-spacing: 0.2em;
+      margin-bottom: 36px;
+    }
+
+    .intro-section {
+      width: 100%;
+      background: #0a0a18;
+      border: 1px solid #1a1a2a;
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin-bottom: 12px;
+    }
+
+    .intro-section h2 {
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      color: #333355;
+      margin-bottom: 14px;
+    }
+
+    .headphone-warn { display: flex; align-items: center; gap: 16px; }
+    .headphone-icon { font-size: 2rem; flex-shrink: 0; }
+    .headphone-warn p { font-size: 0.8rem; color: #8888aa; line-height: 1.7; }
+    .headphone-warn strong { color: #aaaaff; }
+
+    .how-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .how-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 14px;
+      background: #080814;
+      border: 1px solid #12121f;
+      border-radius: 6px;
+    }
+
+    .how-emoji { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+
+    .how-text .hw-title { font-size: 0.7rem; color: #8888ff; margin-bottom: 2px; }
+    .how-text .hw-desc  { font-size: 0.65rem; color: #444466; line-height: 1.5; }
+
+    .how-item.full { grid-column: 1 / -1; }
+
+    .start-btn {
+      margin-top: 8px;
+      width: 100%;
+      padding: 16px;
+      background: #0f0f2a;
+      color: #8888ff;
+      border: 1px solid #222266;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 1rem;
+      letter-spacing: 0.15em;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .start-btn:hover { background: #16163a; }
+
+    .perm-note {
+      font-size: 0.65rem;
+      color: #222244;
+      margin-top: 8px;
+      text-align: center;
+    }
+
+    /* ── Performance screen ── */
+    #perfScreen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 0 32px;
+    }
+
+    /* Top bar */
+    #topBar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      width: 840px;
+      margin-bottom: 12px;
+      padding: 0 4px;
+    }
+
+    #topBar h1 {
+      font-size: 1rem;
+      letter-spacing: 0.25em;
+      color: #8888ff;
+    }
+
+    #topBar .sub {
+      font-size: 0.65rem;
+      color: #222244;
+      letter-spacing: 0.2em;
+    }
+
+    /* Canvas stack wrapper */
+    #canvasWrap {
+      position: relative;
+      width: 840px;
+      height: 520px;
+      border-radius: 10px;
+      overflow: hidden;
+      /* Subtle outer glow so it feels like a lit screen */
+      box-shadow: 0 0 0 1px #1a1a2a,
+                  0 0 40px rgba(80, 80, 180, 0.08);
+    }
+
+    /* All three canvases sit exactly on top of each other */
+    #canvasWrap canvas {
+      position: absolute;
+      top: 0; left: 0;
+    }
+
+    /* Hand canvas is topmost, transparent */
+    #handCanvas { pointer-events: none; }
+
+    /* Bottom bar */
+    #bottomBar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      width: 840px;
+      margin-top: 12px;
+      padding: 0 4px;
+    }
+
+    /* Live pitch colour swatch */
+    #pitchSwatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #222244;
+      flex-shrink: 0;
+      transition: background 0.1s;
+    }
+
+    #pitchSwatch.active {
+      box-shadow: 0 0 8px currentColor;
+    }
+
+    #pitchLabel {
+      font-size: 0.7rem;
+      color: #333355;
+      flex: 1;
+    }
+
+    #gestureLabel {
+      font-size: 0.7rem;
+      color: #333355;
+    }
+
+    .bar-btn {
+      padding: 8px 20px;
+      background: #0a0a18;
+      color: #555577;
+      border: 1px solid #1a1a2a;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .bar-btn:hover { background: #12122a; color: #8888ff; border-color: #333366; }
+
+    /* Fading status message that appears briefly */
+    #statusMsg {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      color: #8888ff;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    #statusMsg.show { opacity: 1; }
+
+    /* Hidden video */
+    #video { display: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Mobile block -->
+  <div id="mobileBlock">
+    <h1>VOCAL CANVAS</h1>
+    <p>This instrument needs a desktop browser.<br>
+    Visit on a laptop or desktop to paint.</p>
+  </div>
+
+  <div id="desktopApp">
+
+    <!-- ── INTRO SCREEN ── -->
+    <div id="introScreen">
+
+      <h1>VOCAL CANVAS</h1>
+      <div class="tagline">body as controller</div>
+
+      <div class="intro-section">
+        <h2>BEFORE YOU START</h2>
+        <div class="headphone-warn">
+          <div class="headphone-icon">🎧</div>
+          <p><strong>Wear headphones or use a directional mic.</strong>
+          The mic is always listening. Speaker sound feeding back
+          into the mic will add unwanted colour to your painting.</p>
+        </div>
+      </div>
+
+      <div class="intro-section">
+        <h2>HOW TO PAINT</h2>
+        <div class="how-grid">
+          <div class="how-item">
+            <div class="how-emoji">🎵</div>
+            <div class="how-text">
+              <div class="hw-title">Pitch → colour</div>
+              <div class="hw-desc">Low hum = deep violet.<br>
+              Rise in pitch = shifts through blue, cyan, green, yellow, red.</div>
+            </div>
+          </div>
+          <div class="how-item">
+            <div class="how-emoji">🔊</div>
+            <div class="how-text">
+              <div class="hw-title">Volume → brush size</div>
+              <div class="hw-desc">Whisper = fine delicate line.<br>
+              Sing loud = broad sweeping stroke.</div>
+            </div>
+          </div>
+          <div class="how-item">
+            <div class="how-emoji">✋</div>
+            <div class="how-text">
+              <div class="hw-title">Hand position → where</div>
+              <div class="hw-desc">Move your hand to place the brush.<br>
+              No hand = brush lifts, painting holds.</div>
+            </div>
+          </div>
+          <div class="how-item">
+            <div class="how-emoji">↕️</div>
+            <div class="how-text">
+              <div class="hw-title">Hand height → opacity</div>
+              <div class="hw-desc">Hand high = light, ethereal marks.<br>
+              Hand low = dense, vivid strokes.</div>
+            </div>
+          </div>
+          <div class="how-item full">
+            <div class="how-emoji">✊</div>
+            <div class="how-text">
+              <div class="hw-title">Fist → slow fade</div>
+              <div class="hw-desc">Make a fist to slowly dissolve the canvas back to black.
+              Takes about 4 seconds. Open your hand to start painting again.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="start-btn" id="startBtn">START PAINTING</button>
+      <div class="perm-note">will request microphone + camera access</div>
+
+    </div>
+
+    <!-- ── PERFORMANCE SCREEN ── -->
+    <div id="perfScreen">
+
+      <div id="topBar">
+        <div>
+          <h1>VOCAL CANVAS</h1>
+        </div>
+        <div class="sub">body as controller</div>
+      </div>
+
+      <!-- Three canvases stacked -->
+      <div id="canvasWrap">
+        <canvas id="gridCanvas"    width="840" height="520"></canvas>
+        <canvas id="paintCanvas"   width="840" height="520"></canvas>
+        <canvas id="handCanvas"    width="840" height="520"></canvas>
+        <div id="statusMsg"></div>
+      </div>
+
+      <div id="bottomBar">
+        <div id="pitchSwatch"></div>
+        <div id="pitchLabel">waiting for voice...</div>
+        <div id="gestureLabel">no hand detected</div>
+        <button class="bar-btn" id="exportBtn">EXPORT PNG</button>
+        <button class="bar-btn" id="clearBtn">CLEAR</button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <video id="video" width="840" height="520" autoplay playsinline></video>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+  <script>
+
+    // ═══════════════════════════════════════════════════════
+    // CONSTANTS
+    // ═══════════════════════════════════════════════════════
+
+    const W = 840;              // canvas width
+    const H = 520;              // canvas height
+    const GRID_SPACING  = 40;   // px between grid lines
+    const TRAIL_LENGTH  = 28;   // how many positions the comet tail holds
+    const FADE_AMOUNT   = 0.012; // how fast the canvas fades on fist (per frame)
+    const MIN_VOICE_HZ  = 80;   // lowest pitch we care about
+    const MAX_VOICE_HZ  = 1000; // highest pitch we care about
+
+    // ═══════════════════════════════════════════════════════
+    // ELEMENT REFS
+    // ═══════════════════════════════════════════════════════
+
+    const startBtn     = document.getElementById('startBtn');
+    const introScreen  = document.getElementById('introScreen');
+    const perfScreen   = document.getElementById('perfScreen');
+    const exportBtn    = document.getElementById('exportBtn');
+    const clearBtn     = document.getElementById('clearBtn');
+    const pitchSwatch  = document.getElementById('pitchSwatch');
+    const pitchLabel   = document.getElementById('pitchLabel');
+    const gestureLabel = document.getElementById('gestureLabel');
+    const statusMsg    = document.getElementById('statusMsg');
+    const video        = document.getElementById('video');
+
+    // Canvas refs and their 2D contexts
+    const gridCanvas  = document.getElementById('gridCanvas');
+    const gridCtx     = gridCanvas.getContext('2d');
+    const paintCanvas = document.getElementById('paintCanvas');
+    const paintCtx    = paintCanvas.getContext('2d');
+    const handCanvas  = document.getElementById('handCanvas');
+    const handCtx     = handCanvas.getContext('2d');
+
+    // ═══════════════════════════════════════════════════════
+    // GRID — drawn once at startup, never changes
+    // ═══════════════════════════════════════════════════════
+
+    function drawGrid() {
+      // Deep dark blue-black background
+      gridCtx.fillStyle = '#080810';
+      gridCtx.fillRect(0, 0, W, H);
+
+      // Thin grid lines — barely visible, just enough to feel structured
+      gridCtx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+      gridCtx.lineWidth   = 0.5;
+
+      // Vertical lines
+      for (let x = 0; x <= W; x += GRID_SPACING) {
+        gridCtx.beginPath();
+        gridCtx.moveTo(x, 0);
+        gridCtx.lineTo(x, H);
+        gridCtx.stroke();
+      }
+
+      // Horizontal lines
+      for (let y = 0; y <= H; y += GRID_SPACING) {
+        gridCtx.beginPath();
+        gridCtx.moveTo(0, y);
+        gridCtx.lineTo(W, y);
+        gridCtx.stroke();
+      }
+
+      // Very subtle centre crosshair — slightly brighter than the grid
+      gridCtx.strokeStyle = 'rgba(255, 255, 255, 0.07)';
+      gridCtx.lineWidth   = 0.5;
+
+      gridCtx.beginPath();
+      gridCtx.moveTo(W / 2, 0);
+      gridCtx.lineTo(W / 2, H);
+      gridCtx.stroke();
+
+      gridCtx.beginPath();
+      gridCtx.moveTo(0, H / 2);
+      gridCtx.lineTo(W, H / 2);
+      gridCtx.stroke();
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // AUDIO SETUP
+    // ═══════════════════════════════════════════════════════
+
+    let audioContext  = null;
+    let pitchAnalyser = null;
+    let pitchBuffer   = null;
+    let rmsAnalyser   = null;
+    let rmsBuffer     = null;
+
+    async function setupAudio() {
+      audioContext = new AudioContext();
+
+      const stream  = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const micNode = audioContext.createMediaStreamSource(stream);
+
+      // Pitch detection analyser — large buffer for accuracy
+      pitchAnalyser = audioContext.createAnalyser();
+      pitchAnalyser.fftSize = 4096;
+      pitchBuffer = new Float32Array(pitchAnalyser.fftSize);
+      micNode.connect(pitchAnalyser);
+
+      // Separate analyser for RMS (volume) — smaller buffer is fine
+      rmsAnalyser = audioContext.createAnalyser();
+      rmsAnalyser.fftSize = 1024;
+      rmsBuffer = new Float32Array(rmsAnalyser.fftSize);
+      micNode.connect(rmsAnalyser);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // PITCH DETECTION — autocorrelation
+    // Same algorithm as the vocoder, brought across here
+    // ═══════════════════════════════════════════════════════
+
+    let lastGoodPitch = 200;   // holds last confident pitch reading
+
+    function detectPitch() {
+      pitchAnalyser.getFloatTimeDomainData(pitchBuffer);
+
+      const SIZE = pitchBuffer.length;
+
+      // RMS confidence check — don't try to detect pitch in silence
+      let rms = 0;
+      for (let i = 0; i < SIZE; i++) rms += pitchBuffer[i] * pitchBuffer[i];
+      rms = Math.sqrt(rms / SIZE);
+      if (rms < 0.012) return null;   // too quiet, return null = no painting
+
+      // Autocorrelation across the vocal frequency range
+      const minLag = Math.floor(audioContext.sampleRate / MAX_VOICE_HZ);
+      const maxLag = Math.floor(audioContext.sampleRate / MIN_VOICE_HZ);
+
+      let bestCorr = 0;
+      let bestLag  = -1;
+
+      for (let lag = minLag; lag <= maxLag; lag++) {
+        let corr = 0;
+        for (let i = 0; i < SIZE - lag; i++) {
+          corr += pitchBuffer[i] * pitchBuffer[i + lag];
+        }
+        corr /= (SIZE - lag);
+        if (corr > bestCorr) { bestCorr = corr; bestLag = lag; }
+      }
+
+      if (bestCorr < 0.01 || bestLag === -1) return null;
+
+      const hz = audioContext.sampleRate / bestLag;
+      if (hz > MIN_VOICE_HZ && hz < MAX_VOICE_HZ) {
+        lastGoodPitch = hz;
+        return hz;
+      }
+
+      return null;
+    }
+
+    // ── RMS volume (0–1) ──────────────────────────────────
+    function getVolume() {
+      rmsAnalyser.getFloatTimeDomainData(rmsBuffer);
+      let sum = 0;
+      for (let i = 0; i < rmsBuffer.length; i++) {
+        sum += rmsBuffer[i] * rmsBuffer[i];
+      }
+      return Math.sqrt(sum / rmsBuffer.length);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // PITCH → COLOUR MAPPING
+    //
+    // We map Hz logarithmically to hue (0–300 degrees).
+    // Logarithmic because musical pitch perception is logarithmic —
+    // each octave doubles the frequency, but sounds like equal steps.
+    //
+    // Low pitch  → high hue (270° = violet/purple)
+    // High pitch → low hue  (0°  = red, via cyan and green)
+    // ═══════════════════════════════════════════════════════
+
+    function pitchToHue(hz) {
+      const logMin = Math.log2(MIN_VOICE_HZ);
+      const logMax = Math.log2(MAX_VOICE_HZ);
+      const logHz  = Math.log2(Math.max(MIN_VOICE_HZ, Math.min(hz, MAX_VOICE_HZ)));
+
+      // t = 0 at lowest pitch, 1 at highest
+      const t = (logHz - logMin) / (logMax - logMin);
+
+      // Map t to hue: low = 270 (violet), high = 0 (red)
+      // We go 270 → 0, sweeping through blue, cyan, green, yellow
+      return 270 - t * 270;
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // TRAIL MANAGEMENT
+    //
+    // The comet tail is just an array of recent hand positions.
+    // Each position also stores the pitch and volume at that moment,
+    // so the colour and size taper correctly along the tail.
+    // ═══════════════════════════════════════════════════════
+
+    let trail = [];   // array of { x, y, hue, volume, wristY }
+
+    function addTrailPoint(x, y, hue, volume, wristY) {
+      trail.push({ x, y, hue, volume, wristY });
+      // Keep trail at fixed max length
+      if (trail.length > TRAIL_LENGTH) trail.shift();
+    }
+
+    function clearTrail() {
+      trail = [];
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // STREAK DRAWING
+    //
+    // Draw the comet tail through the trail array.
+    // Each segment between two consecutive points gets drawn
+    // as a line with width and opacity that increases toward
+    // the newest point (the head).
+    // ═══════════════════════════════════════════════════════
+
+    function drawStreak() {
+      if (trail.length < 2) return;
+
+      for (let i = 1; i < trail.length; i++) {
+        const prev = trail[i - 1];
+        const curr = trail[i];
+
+        // How far along the tail are we? 0 = oldest, 1 = newest
+        const t = i / trail.length;
+
+        // Volume → base brush size (2px quiet, 22px loud)
+        const baseSize = 2 + curr.volume * 20;
+
+        // Taper: tail is thin, head is full size
+        const lineWidth = baseSize * t;
+
+        // Opacity: tail fades to nothing
+        // Also: wristY controls overall opacity
+        // wristY is 0 at top, 1 at bottom
+        // High hand (low Y) = more transparent, low hand = more opaque
+        const heightOpacity = 0.3 + (curr.wristY * 0.7);
+        const opacity = t * 0.85 * heightOpacity;
+
+        // Colour: tail is darker version of head colour
+        // We reduce lightness toward the tail
+        const lightness = 40 + t * 30;   // 40% at tail, 70% at head
+
+        paintCtx.globalCompositeOperation = 'lighter';
+        paintCtx.strokeStyle = `hsla(${curr.hue}, 85%, ${lightness}%, ${opacity})`;
+        paintCtx.lineWidth   = lineWidth;
+        paintCtx.lineCap     = 'round';
+        paintCtx.lineJoin    = 'round';
+
+        paintCtx.beginPath();
+        paintCtx.moveTo(prev.x, prev.y);
+        paintCtx.lineTo(curr.x, curr.y);
+        paintCtx.stroke();
+
+        // ── Head glow ────────────────────────────────────────
+        // At the very tip of the comet, draw a soft radial bloom
+        if (i === trail.length - 1) {
+          const glowSize = baseSize * 1.8;
+
+          // Radial gradient from bright centre to transparent edge
+          const grd = paintCtx.createRadialGradient(
+            curr.x, curr.y, 0,
+            curr.x, curr.y, glowSize
+          );
+          grd.addColorStop(0,   `hsla(${curr.hue}, 90%, 85%, ${0.4 * heightOpacity})`);
+          grd.addColorStop(0.4, `hsla(${curr.hue}, 85%, 65%, ${0.15 * heightOpacity})`);
+          grd.addColorStop(1,   `hsla(${curr.hue}, 80%, 50%, 0)`);
+
+          paintCtx.globalCompositeOperation = 'lighter';
+          paintCtx.fillStyle = grd;
+          paintCtx.beginPath();
+          paintCtx.arc(curr.x, curr.y, glowSize, 0, Math.PI * 2);
+          paintCtx.fill();
+        }
+      }
+
+      // Reset composite operation back to default
+      paintCtx.globalCompositeOperation = 'source-over';
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // FIST FADE
+    //
+    // When a fist is detected we set isFading = true.
+    // Each frame we paint a semi-transparent dark rectangle
+    // over the painting canvas. Over ~4 seconds this fully
+    // clears it. Opening the hand stops the fade.
+    // ═══════════════════════════════════════════════════════
+
+    let isFading = false;
+
+    function applyFade() {
+      paintCtx.globalCompositeOperation = 'source-over';
+      paintCtx.fillStyle = `rgba(8, 8, 16, ${FADE_AMOUNT})`;
+      paintCtx.fillRect(0, 0, W, H);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // EXPORT
+    // ═══════════════════════════════════════════════════════
+
+    function exportPainting() {
+      // Create a temporary canvas to composite grid + painting
+      const exportCanvas    = document.createElement('canvas');
+      exportCanvas.width    = W;
+      exportCanvas.height   = H;
+      const exportCtx       = exportCanvas.getContext('2d');
+
+      // Draw grid first, painting on top
+      exportCtx.drawImage(gridCanvas,  0, 0);
+      exportCtx.drawImage(paintCanvas, 0, 0);
+
+      // Trigger browser download
+      const link      = document.createElement('a');
+      link.download   = `vocal-canvas-${Date.now()}.png`;
+      link.href       = exportCanvas.toDataURL('image/png');
+      link.click();
+
+      showStatus('painting exported');
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // STATUS MESSAGE
+    // ═══════════════════════════════════════════════════════
+
+    let statusTimeout = null;
+
+    function showStatus(msg) {
+      statusMsg.textContent = msg;
+      statusMsg.classList.add('show');
+      clearTimeout(statusTimeout);
+      statusTimeout = setTimeout(() => {
+        statusMsg.classList.remove('show');
+      }, 2000);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // HAND TRACKING STATE
+    // ═══════════════════════════════════════════════════════
+
+    let handState = {
+      detected: false,
+      x:        W / 2,
+      y:        H / 2,
+      wristY:   0.5,     // 0 = top, 1 = bottom
+      isFist:   false,
+      fingers:  { thumb: false, index: false, middle: false, ring: false, pinky: false },
+    };
+
+    // ── Finger detection (same fixed thumb as vocoder) ────
+    function detectFingers(lm) {
+      const thumbTip  = lm[4];
+      const indexMcp  = lm[5];
+      const thumbDist = Math.hypot(thumbTip.x - indexMcp.x, thumbTip.y - indexMcp.y);
+      const palmSize  = Math.hypot(lm[0].x - indexMcp.x, lm[0].y - indexMcp.y);
+
+      return {
+        thumb:  thumbDist > palmSize * 0.8,
+        index:  lm[8].y  < lm[6].y,
+        middle: lm[12].y < lm[10].y,
+        ring:   lm[16].y < lm[14].y,
+        pinky:  lm[20].y < lm[18].y,
+      };
+    }
+
+    function isFist(fingers) {
+      return !fingers.index && !fingers.middle && !fingers.ring && !fingers.pinky;
+    }
+
+    // ── Draw hand skeleton on handCanvas ─────────────────
+    const CONNECTIONS = [
+      [0,1],[1,2],[2,3],[3,4],
+      [0,5],[5,6],[6,7],[7,8],
+      [0,9],[9,10],[10,11],[11,12],
+      [0,13],[13,14],[14,15],[15,16],
+      [0,17],[17,18],[18,19],[19,20],
+      [5,9],[9,13],[13,17],
+    ];
+
+    function drawHand(landmarks, currentHue) {
+      handCtx.clearRect(0, 0, W, H);
+
+      const toCanvas = lm => ({
+        x: (1 - lm.x) * W,
+        y: lm.y * H,
+      });
+
+      // Bones — coloured faintly with current pitch hue
+      handCtx.strokeStyle = `hsla(${currentHue}, 60%, 40%, 0.35)`;
+      handCtx.lineWidth   = 1.5;
+
+      CONNECTIONS.forEach(([a, b]) => {
+        const pa = toCanvas(landmarks[a]);
+        const pb = toCanvas(landmarks[b]);
+        handCtx.beginPath();
+        handCtx.moveTo(pa.x, pa.y);
+        handCtx.lineTo(pb.x, pb.y);
+        handCtx.stroke();
+      });
+
+      // Joints
+      landmarks.forEach((lm, i) => {
+        const p      = toCanvas(lm);
+        const isTip  = [4,8,12,16,20].includes(i);
+        handCtx.beginPath();
+        handCtx.arc(p.x, p.y, isTip ? 4 : 2.5, 0, Math.PI * 2);
+        handCtx.fillStyle = isTip
+          ? `hsla(${currentHue}, 80%, 65%, 0.7)`
+          : `hsla(${currentHue}, 60%, 40%, 0.4)`;
+        handCtx.fill();
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // MEDIAPIPE SETUP
+    // ═══════════════════════════════════════════════════════
+
+    function setupHandTracking() {
+      const hands = new Hands({
+        locateFile: file =>
+          `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+      });
+
+      hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.75,
+        minTrackingConfidence:  0.5,
+      });
+
+      hands.onResults(results => {
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+          const lm      = results.multiHandLandmarks[0];
+          const fingers = detectFingers(lm);
+
+          // Use index fingertip (landmark 8) as the brush position
+          // Mirror x so it feels like a mirror
+          handState.detected = true;
+          handState.x        = (1 - lm[8].x) * W;
+          handState.y        = lm[8].y * H;
+          handState.wristY   = lm[0].y;
+          handState.isFist   = isFist(fingers);
+          handState.fingers  = fingers;
+
+          // Pass current hue to hand draw so skeleton matches pitch colour
+          drawHand(lm, currentHue);
+
+        } else {
+          handCtx.clearRect(0, 0, W, H);
+          handState.detected = false;
+          handState.isFist   = false;
+        }
+      });
+
+      const camera = new Camera(video, {
+        onFrame: async () => { await hands.send({ image: video }); },
+        width:  W,
+        height: H,
+      });
+
+      camera.start();
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // MAIN DRAW LOOP
+    // ═══════════════════════════════════════════════════════
+
+    let currentHue = 270;   // updated each frame from pitch
+
+    function drawLoop() {
+      requestAnimationFrame(drawLoop);
+
+      // ── Get audio data ──────────────────────────────────
+      const pitchHz = detectPitch();
+      const volume  = getVolume();
+      const isVoiceActive = pitchHz !== null;
+
+      // Update hue from pitch (or hold last good value)
+      if (isVoiceActive) {
+        currentHue = pitchToHue(pitchHz);
+      }
+
+      // ── Update pitch swatch UI ──────────────────────────
+      const swatchColor = `hsl(${currentHue}, 80%, 55%)`;
+      pitchSwatch.style.background = isVoiceActive ? swatchColor : '#222244';
+      pitchSwatch.style.boxShadow  = isVoiceActive
+        ? `0 0 8px hsl(${currentHue}, 80%, 55%)`
+        : 'none';
+
+      if (isVoiceActive) {
+        const noteHz = Math.round(pitchHz);
+        pitchLabel.textContent = `${noteHz} hz`;
+        pitchLabel.style.color = swatchColor;
+      } else {
+        pitchLabel.textContent = 'no voice detected';
+        pitchLabel.style.color = '#333355';
+      }
+
+      // ── Handle fist fade ────────────────────────────────
+      if (handState.isFist) {
+        isFading = true;
+        clearTrail();
+        gestureLabel.textContent = 'fist — clearing canvas';
+      } else if (handState.detected) {
+        isFading = false;
+
+        // ── Add to trail and paint streak ─────────────────
+        // Only paint if voice is active — silence = no mark
+        if (isVoiceActive && volume > 0.01) {
+          addTrailPoint(
+            handState.x,
+            handState.y,
+            currentHue,
+            Math.min(volume * 8, 1),   // scale volume to 0–1
+            handState.wristY
+          );
+          drawStreak();
+        }
+
+        // Update gesture label
+        const heightPct = Math.round((1 - handState.wristY) * 100);
+        gestureLabel.textContent = `hand at ${heightPct}% height`;
+        gestureLabel.style.color = '#555577';
+
+      } else {
+        // No hand — brush lifts
+        clearTrail();
+        gestureLabel.textContent = 'no hand detected';
+        gestureLabel.style.color = '#333355';
+      }
+
+      // Apply fade if fist is active
+      if (isFading) applyFade();
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // BUTTONS
+    // ═══════════════════════════════════════════════════════
+
+    exportBtn.addEventListener('click', exportPainting);
+
+    clearBtn.addEventListener('click', () => {
+      // Instant clear — just paint solid dark over everything
+      paintCtx.globalCompositeOperation = 'source-over';
+      paintCtx.fillStyle = '#080810';
+      paintCtx.fillRect(0, 0, W, H);
+      clearTrail();
+      showStatus('canvas cleared');
+    });
+
+    // ═══════════════════════════════════════════════════════
+    // START
+    // ═══════════════════════════════════════════════════════
+
+    document.getElementById('startBtn').addEventListener('click', async () => {
+      await setupAudio();
+      setupHandTracking();
+      drawGrid();
+
+      // Clear paint canvas to dark base colour
+      paintCtx.fillStyle = '#080810';
+      paintCtx.fillRect(0, 0, W, H);
+
+      // Swap screens
+      introScreen.style.display = 'none';
+      perfScreen.style.display  = 'flex';
+
+      drawLoop();
+    });
+
+  </script>
+</body>
+</html>
